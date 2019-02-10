@@ -5,7 +5,7 @@ using XFEL.Ctrl;
 using XFEL.Helpers;
 using XFEL.Objects;
 
-namespace Project2018
+namespace Project2018CodeSamples
 {
     public enum GameStateTypes
     {
@@ -20,8 +20,9 @@ namespace Project2018
         public event Action<bool> OnGamePause;
         public event Action<BaseApparatus> OnFocusToApparatus;
 
+        private const float _camAnimTime = 2f;
+        private Coroutine _currCoroute;        
         [SerializeField] private GameStateTypes _state;
-
         public GameStateTypes State
         {
             get { return _state; }
@@ -33,48 +34,43 @@ namespace Project2018
                     OnGameStateChanged?.Invoke();
                 }
             }
-        }
-
-        public PlayerCtrl PlayerCtrl { get; private set; }
+        }       
+        
+        public InputCtrl InputCtrl { get; private set; }
         public CameraCtrl CamCtrl { get; private set; }
         public BeamsCtrl BeamsCtrl { get; private set; }
-        public InputCtrl InputCtrl { get; private set; }
+        
+        public PlayerCtrl PlayerCtrl { get; private set; }
         public SlotManager SlotManager { get; private set; }
         public CrosshairManager CrosshairManager { get; private set; }
-
         public BaseApparatus CurrentApparatus { get; private set; }
-
-        private const float _camAnimTime = 2f;
-        private Coroutine _currCoroute;
-
-
+        
         protected override void Awake()
         {
             base.Awake();
             _state = GameStateTypes.FPS;
 
-            PlayerCtrl = FindObjectOfType<PlayerCtrl>();
+            InputCtrl = gameObject.AddComponent<InputCtrl>();                        
             CamCtrl = FindObjectOfType<CameraCtrl>();
             BeamsCtrl = FindObjectOfType<BeamsCtrl>();
 
-            InputCtrl = gameObject.AddComponent<InputCtrl>();
+            PlayerCtrl = FindObjectOfType<PlayerCtrl>();
             SlotManager = gameObject.AddComponent<SlotManager>();
-            CrosshairManager = GetComponent<CrosshairManager>();
-
-            InputCtrl.Escape += Pause;
+            CrosshairManager = GetComponent<CrosshairManager>();            
         }
 
+        private void Start() => InputCtrl.Escape += Pause;
+
         private void Pause()
-        {
-            Time.timeScale = TimeIsNotPaused() ? 0 : 1;
+        {            
+            Time.timeScale = TimeIsPaused() ? 1 : 0;
             OnGamePause?.Invoke(TimeIsPaused());
 
             if (TimeIsPaused())
                 InputCtrl.On();
         }
-
+        
         private bool TimeIsPaused() => Math.Abs(Time.timeScale) < float.Epsilon;
-        private bool TimeIsNotPaused() => Math.Abs(Time.timeScale - 1) < float.Epsilon;
 
         private void OnApplicationFocus(bool hasFocus)
         {

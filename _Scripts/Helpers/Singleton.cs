@@ -1,7 +1,7 @@
 ﻿using System;
 using UnityEngine;
 
-namespace Project2018.Helpers
+namespace Project2018CodeSamples.Helpers
 {
     public class Singleton<T> : MonoBehaviour where T : MonoBehaviour
     {

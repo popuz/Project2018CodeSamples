@@ -1,7 +1,7 @@
 ﻿using System;
 using UnityEngine;
 
-namespace Project2018.Ctrl
+namespace Project2018CodeSamples.Ctrl
 {
     public class InputCtrl : BaseCtrl
     {        
@@ -12,6 +12,7 @@ namespace Project2018.Ctrl
         public event Action ToggleAnimVisibility;
 
         public static bool IsGoingBackward => Input.GetAxis("Vertical") < 0;
+        public static bool RightMouseButtonIsPressed => Input.GetAxisRaw("Fire2") > 0;
         private void Start() => On();
 
         public override void On()
