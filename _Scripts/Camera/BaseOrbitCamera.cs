@@ -4,51 +4,57 @@ using UnityEngine.EventSystems;
 using UnityEngine.Serialization;
 using XFEL.Ctrl;
 
-namespace Project2018CodeSamples.Ctrl
+namespace Project2018CodeSamples
 {
     public class BaseOrbitCamera : MonoBehaviour, ICamera
     {
-        [Header("Base Camera")] [SerializeField]
-        private float _mouseSensitivity = 4f;
-
+        [SerializeField] private float _mouseSensitivity = 4f;
         [SerializeField] private float _scrollSensitivity = 2f;
         [SerializeField] private float _orbitDampening = 2f;
         [SerializeField] protected float _scrollDampening = 2f;
         [SerializeField] private bool _isControlledOnMouseDown = true;
 
+        protected bool _camInputIsDisabled = false;
         protected Transform _camTransform;
         protected Transform _camParentTransform;
 
-        private Vector2 _verticalClamp = new Vector2(-90, 90);
-        protected bool _camInputIsDisabled = false;
+        private const float MIN_VERTICAL_ANGLE = -90;
+        private const float MAX_VERTICAL_ANGLE = 90;
 
         private Vector3 _localRotation;
         private float _cameraDistance = 10f;
-        protected Quaternion _startParentRot;
         protected float _startCamDist;
         protected BaseCamDistanceHandler _distanceHandler;
 
         public bool IsControlledOnMouseDown => _isControlledOnMouseDown;
+        public Quaternion CameraParentRotation => _camParentTransform.rotation;
+
+        public void SetStartRot(Vector2 localRot)
+        {
+            var QT = Quaternion.Euler(localRot.y, localRot.x, 0);
+            _camParentTransform.localRotation = Quaternion.Euler(QT.eulerAngles.x, QT.eulerAngles.y, 0);
+            _localRotation = localRot;
+        }
 
         public virtual void Init(Transform cam, Transform pivot)
         {
-            _camTransform = cam ? cam : transform;
-            _camParentTransform = pivot ? pivot : transform.parent;
+            var myTransform = transform;
+            _camTransform = cam ? cam : myTransform;
+            _camParentTransform = pivot ? pivot : myTransform.parent;
 
             _distanceHandler = GetComponent<BaseCamDistanceHandler>();
             _distanceHandler.Init(_camTransform);
 
             StopCurrentRotation();
 
-            _startParentRot = _camParentTransform.localRotation;
             _startCamDist = _cameraDistance;
         }
 
         protected virtual void StopCurrentRotation()
         {
-            var gameObjectLocalRot = _camParentTransform.localRotation;
-            _localRotation.x = gameObjectLocalRot.eulerAngles.y;
-            _localRotation.y = gameObjectLocalRot.eulerAngles.x;
+            var camParentLocalRotation = _camParentTransform.localRotation;
+            _localRotation.x = camParentLocalRotation.eulerAngles.y;
+            _localRotation.y = camParentLocalRotation.eulerAngles.x;
             _cameraDistance = _camTransform.localPosition.z * -1f;
         }
 
@@ -57,17 +63,15 @@ namespace Project2018CodeSamples.Ctrl
             if (_camInputIsDisabled) return;
 
             if (MouseIsMoved(mouseX, mouseY) && (!_isControlledOnMouseDown || InputCtrl.RightMouseButtonIsPressed))
-            {
-                _localRotation += CalculateDeltaRotation(mouseX, mouseY);
-                _localRotation = ClampRotation(_localRotation);
-            }
-
-            if (MouseIsScrolled(scrollWheel))
-                _cameraDistance = CalculateTargetCameraDistance(scrollWheel, _cameraDistance);
-
+                _localRotation = ClampRotation(_localRotation + CalculateDeltaRotation(mouseX, mouseY));
             _camParentTransform.localRotation = GetFinalRotation(_localRotation.y, _localRotation.x);
-            _distanceHandler.HandleDistance(ref _cameraDistance, _scrollDampening);
+            
+            if (MouseIsScrolled(scrollWheel))
+                _cameraDistance += CalculateCamTargetDeltaDistance(scrollWheel, _cameraDistance);            
+            _cameraDistance = _distanceHandler.HandleDistance(_cameraDistance, _scrollDampening);
         }
+
+        #region Tick Functionality Methods              
 
         private bool MouseIsMoved(float mouseX, float mouseY) =>
             Math.Abs(mouseX) > float.Epsilon || Math.Abs(mouseY) > float.Epsilon;
@@ -83,28 +87,12 @@ namespace Project2018CodeSamples.Ctrl
 
         private Vector3 ClampRotation(Vector3 localRotation)
         {
-            if (localRotation.y < _verticalClamp.x) // MIN vertical angle
-                localRotation.y = _verticalClamp.x;
-            else if (localRotation.y > _verticalClamp.y) // MAX vertical angle
-                localRotation.y = _verticalClamp.y;
+            if (localRotation.y < MIN_VERTICAL_ANGLE)
+                localRotation.y = MIN_VERTICAL_ANGLE;
+            else if (localRotation.y > MAX_VERTICAL_ANGLE)
+                localRotation.y = MAX_VERTICAL_ANGLE;
 
             return localRotation;
-        }
-
-        private bool MouseIsScrolled(float scrollWheel) => Math.Abs(scrollWheel) > float.Epsilon;
-
-        private float CalculateTargetCameraDistance(float inputZoomWheel, float cameraDistance)
-        {
-            var scrollAmount = inputZoomWheel * _scrollSensitivity;
-
-            scrollAmount *= (cameraDistance * 0.3f);
-
-            if (inputZoomWheel < 0 && _distanceHandler.WallProtector != null &&
-                _distanceHandler.WallProtector.HitSomething) return cameraDistance;
-
-            cameraDistance += scrollAmount * -1f;
-
-            return cameraDistance;
         }
 
         private Quaternion GetFinalRotation(float rotY, float rotX)
@@ -115,14 +103,16 @@ namespace Project2018CodeSamples.Ctrl
 
             return Quaternion.Euler(parentRotation.eulerAngles.x, parentRotation.eulerAngles.y, 0);
         }
+        
+        private bool MouseIsScrolled(float scrollWheel) => Math.Abs(scrollWheel) > float.Epsilon;
 
-        public void SetStartRot(Vector2 localRot)
+        private float CalculateCamTargetDeltaDistance(float inputZoomWheel, float cameraDistance)
         {
-            var QT = Quaternion.Euler(localRot.y, localRot.x, 0);
-            _camParentTransform.localRotation = Quaternion.Euler(QT.eulerAngles.x, QT.eulerAngles.y, 0);
-            _localRotation = localRot;
-        }
+            if (_distanceHandler.WallProtector != null && _distanceHandler.WallProtector.HitSomething)
+                return 0;
 
-        public Quaternion GetCameraParentRot() => _camParentTransform.rotation;
+            return -inputZoomWheel * _scrollSensitivity * (cameraDistance * 0.3f);
+        }    
+        #endregion
     }
 }

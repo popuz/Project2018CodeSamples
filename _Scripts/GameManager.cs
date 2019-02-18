@@ -20,9 +20,11 @@ namespace Project2018CodeSamples
         public event Action<bool> OnGamePause;
         public event Action<BaseApparatus> OnFocusToApparatus;
 
-        private const float _camAnimTime = 2f;
-        private Coroutine _currCoroute;        
         [SerializeField] private GameStateTypes _state;
+
+        private const float _camAnimTime = 2f;
+        private Coroutine _currCoroute;
+
         public GameStateTypes State
         {
             get { return _state; }
@@ -34,42 +36,44 @@ namespace Project2018CodeSamples
                     OnGameStateChanged?.Invoke();
                 }
             }
-        }       
-        
+        }
+
         public InputCtrl InputCtrl { get; private set; }
         public CameraCtrl CamCtrl { get; private set; }
         public BeamsCtrl BeamsCtrl { get; private set; }
-        
+        public BaseApparatus CurrentApparatus { get; private set; }
+
+        #region Not used in class (only for referencing through singlenton)                       
         public PlayerCtrl PlayerCtrl { get; private set; }
         public SlotManager SlotManager { get; private set; }
         public CrosshairManager CrosshairManager { get; private set; }
-        public BaseApparatus CurrentApparatus { get; private set; }
-        
+        #endregion
+
         protected override void Awake()
         {
             base.Awake();
             _state = GameStateTypes.FPS;
 
-            InputCtrl = gameObject.AddComponent<InputCtrl>();                        
+            InputCtrl = gameObject.AddComponent<InputCtrl>();
             CamCtrl = FindObjectOfType<CameraCtrl>();
             BeamsCtrl = FindObjectOfType<BeamsCtrl>();
 
             PlayerCtrl = FindObjectOfType<PlayerCtrl>();
             SlotManager = gameObject.AddComponent<SlotManager>();
-            CrosshairManager = GetComponent<CrosshairManager>();            
+            CrosshairManager = GetComponent<CrosshairManager>();
         }
 
         private void Start() => InputCtrl.Escape += Pause;
 
         private void Pause()
-        {            
+        {
             Time.timeScale = TimeIsPaused() ? 1 : 0;
             OnGamePause?.Invoke(TimeIsPaused());
 
             if (TimeIsPaused())
                 InputCtrl.On();
         }
-        
+
         private bool TimeIsPaused() => Math.Abs(Time.timeScale) < float.Epsilon;
 
         private void OnApplicationFocus(bool hasFocus)
@@ -101,7 +105,7 @@ namespace Project2018CodeSamples
         public void FocusOnApparatus(BaseApparatus apparatus, Transform targetPivot, Transform targetCamTrsf,
             float animTime)
         {
-            CurrentApparatus = apparatus;           
+            CurrentApparatus = apparatus;
             State = GameStateTypes.Quest;
 
             CamCtrl.SwitchToOrbitCam(targetPivot, targetCamTrsf, animTime);

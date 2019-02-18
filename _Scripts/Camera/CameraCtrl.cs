@@ -114,10 +114,10 @@ namespace Project2018CodeSamples.Ctrl
 
         public void SwitchToFpsCam(float animTime, Action onComplete)
         {
-            if (_activeCam == _fpsCam) return;
+            if (ReferenceEquals(_activeCam, _fpsCam)) return;
 
-            _orbitCam.AnimCamTo(_character.position + Vector3.up * CENTER_TO_HEAD_DIST, _lastFpsCameraRotByOrbit,
-                Vector3.zero, animTime, null, onComplete: OnTransitionToFpsCamComplete + onComplete);
+            _orbitCam.AnimCamWithShift(_character.position + Vector3.up * CENTER_TO_HEAD_DIST, _lastFpsCameraRotByOrbit,
+                Vector3.zero, animTime, onComplete: OnTransitionToFpsCamComplete + onComplete);
 
             SetCursorLockAndVisibility(true);
         }
@@ -135,11 +135,11 @@ namespace Project2018CodeSamples.Ctrl
             {
                 _lastFpsCameraRot = _fpsCam.GetRotAndResetAllRotToZero();
                 _orbitCam.SetStartRot(_lastFpsCameraRot);
-                _lastFpsCameraRotByOrbit = _orbitCam.GetCameraParentRot();
+                _lastFpsCameraRotByOrbit = _orbitCam.CameraParentRotation;
                 _activeCam = _orbitCam;
             }
 
-            _orbitCam.AnimCamTo(targetPivot.position, targetPivot.rotation, targetCamTrsf.localPosition, animTime, null,
+            _orbitCam.AnimCamWithShift(targetPivot.position, targetPivot.rotation, targetCamTrsf.localPosition, animTime, 
                 onComplete: () => SetCursorLockAndVisibility(false));
         }
 
